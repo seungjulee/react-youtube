@@ -1,25 +1,65 @@
+/* eslint max-len: 0 */
 import expect from 'expect';
 import shallowRender from './helpers/shallowRender';
 import fullRender from './helpers/fullRender';
+import YouTube from '../src/YouTube';
 
 describe('YouTube', () => {
+  // See helpers/setupEnvironment.
+  const HTMLDivElement = window.HTMLDivElement;
+
+  it('should expose player state constants', () => {
+    expect(YouTube.PlayerState)
+      .toExist()
+      .toContainKeys(['UNSTARTED', 'ENDED', 'PLAYING', 'PAUSED', 'BUFFERING', 'CUED']);
+  });
+
   it('should render a div with a custom id', () => {
     const { output } = shallowRender({
       id: 'custom-id',
       videoId: 'XxVg_s8xAms',
     });
 
-    expect(output.props.id).toBe('custom-id');
+    const div = output.props.children;
+    expect(div.props.id).toBe('custom-id');
   });
 
   it('should render a div with a custom className', () => {
     const { output } = shallowRender({
-      id: 'custom-id',
       className: 'custom-class',
       videoId: 'XxVg_s8xAms',
     });
 
-    expect(output.props.className).toBe('custom-class');
+    const div = output.props.children;
+    expect(div.props.className).toBe('custom-class');
+  });
+
+  it('should update an id', () => {
+    const { playerMock, rerender } = fullRender({
+      id: 'custom-id',
+      videoId: 'XxVg_s8xAms',
+    });
+
+    rerender({
+      id: 'custom-id2',
+      videoId: 'XxVg_s8xAms',
+    });
+
+    expect(playerMock.getIframe).toHaveBeenCalled();
+  });
+
+  it('should update a className', () => {
+    const { playerMock, rerender } = fullRender({
+      className: 'custom-class1',
+      videoId: 'XxVg_s8xAms',
+    });
+
+    rerender({
+      className: 'custom-class2',
+      videoId: 'XxVg_s8xAms',
+    });
+
+    expect(playerMock.getIframe).toHaveBeenCalled();
   });
 
   it('should create and bind a new youtube player when mounted', () => {
@@ -27,7 +67,7 @@ describe('YouTube', () => {
       videoId: 'XxVg_s8xAms',
     });
 
-    expect(playerMock.on.calls.length).toBe(3);
+    expect(playerMock.on.calls.length).toBe(5);
   });
 
   it('should create and bind a new youtube player when props.opts changes', () => {
@@ -37,7 +77,7 @@ describe('YouTube', () => {
         width: '480px',
         height: '360px',
         playerVars: {
-          autoplay: 1,
+          controls: 1,
           start: 0,
         },
       },
@@ -49,7 +89,7 @@ describe('YouTube', () => {
         width: '480px',
         height: '360px',
         playerVars: {
-          autoplay: 0, // changed, forces destroy & rebind
+          controls: 0, // changed, forces destroy & rebind
           start: 10, // changed, but does not destroy & rebind
         },
       },
@@ -59,14 +99,14 @@ describe('YouTube', () => {
     expect(playerMock.destroy).toHaveBeenCalled();
   });
 
-  it('should NOT create and bind a new youtube player when props.videoId, playerVars.start, or playerVars.end change', () => {
+  it('should NOT create and bind a new youtube player when props.videoId, playerVars.autoplay, playerVars.start, or playerVars.end change', () => {
     const { playerMock, rerender } = fullRender({
       videoId: 'XxVg_s8xAms',
       opts: {
         width: '480px',
         height: '360px',
         playerVars: {
-          autoplay: 1,
+          autoplay: 0,
           start: 0,
           end: 50,
         },
@@ -79,7 +119,7 @@ describe('YouTube', () => {
         width: '480px',
         height: '360px',
         playerVars: {
-          autoplay: 1,
+          autoplay: 1, // changed, does not force destroy & rebind
           start: 10, // changed, does not force destroy & rebind
           end: 20, // changed, does not force destroy & rebind
         },
@@ -99,7 +139,7 @@ describe('YouTube', () => {
         width: '480px',
         height: '360px',
         playerVars: {
-          autoplay: 1,
+          controls: 1,
         },
       },
     });
@@ -110,7 +150,7 @@ describe('YouTube', () => {
         width: '480px',
         height: '360px',
         playerVars: {
-          autoplay: 0, // changed
+          controls: 0, // changed
         },
       },
     });
@@ -125,7 +165,8 @@ describe('YouTube', () => {
       videoId: 'XxVg_s8xAms',
     });
 
-    expect(playerMock).toHaveBeenCalledWith('should-load-a-video', { videoId: 'XxVg_s8xAms' });
+    expect(playerMock).toHaveBeenCalled();
+    expect(playerMock.calls[0].arguments[1]).toEqual({ videoId: 'XxVg_s8xAms' });
   });
 
   it('should load a new video', () => {
@@ -138,7 +179,9 @@ describe('YouTube', () => {
       videoId: '-DX3vJiqxm4',
     });
 
-    expect(playerMock).toHaveBeenCalledWith('new-video', { videoId: 'XxVg_s8xAms' });
+    expect(playerMock).toHaveBeenCalled();
+    expect(playerMock.calls[0].arguments[0]).toBeAn(HTMLDivElement);
+    expect(playerMock.calls[0].arguments[1]).toEqual({ videoId: 'XxVg_s8xAms' });
     expect(playerMock.cueVideoById).toHaveBeenCalledWith({ videoId: '-DX3vJiqxm4' });
   });
 
@@ -177,7 +220,8 @@ describe('YouTube', () => {
 
     expect(playerMock.cueVideoById).toNotHaveBeenCalled();
     expect(playerMock.loadVideoById).toNotHaveBeenCalled();
-    expect(playerMock).toHaveBeenCalledWith('should-load-autoplay', {
+    expect(playerMock).toHaveBeenCalled();
+    expect(playerMock.calls[0].arguments[1]).toEqual({
       videoId: 'XxVg_s8xAms',
       playerVars: {
         autoplay: 1,
@@ -196,7 +240,8 @@ describe('YouTube', () => {
       },
     });
 
-    expect(playerMock).toHaveBeenCalledWith('should-load-new-autoplay', {
+    expect(playerMock).toHaveBeenCalled();
+    expect(playerMock.calls[0].arguments[1]).toEqual({
       videoId: 'XxVg_s8xAms',
       playerVars: {
         autoplay: 1,
@@ -213,7 +258,6 @@ describe('YouTube', () => {
 
   it('should load a video with a set starting and ending time', () => {
     const { playerMock, rerender } = fullRender({
-      id: 'start-and-end',
       videoId: 'XxVg_s8xAms',
       opts: {
         playerVars: {
@@ -223,7 +267,8 @@ describe('YouTube', () => {
       },
     });
 
-    expect(playerMock).toHaveBeenCalledWith('start-and-end', {
+    expect(playerMock).toHaveBeenCalled();
+    expect(playerMock.calls[0].arguments[1]).toEqual({
       videoId: 'XxVg_s8xAms',
       playerVars: {
         start: 1,
